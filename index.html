@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="darkreader-lock" />
+    <title>QR Code Generator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
+    <!-- Tabler Icons CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
+    />
+    <!-- QR Code Generator Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+      [data-darkreader-ignore] {
+        color-scheme: light !important;
+      }
+      #qrcode img,
+      #qrcode canvas {
+        width: 100% !important;
+        height: auto !important;
+        max-width: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 flex items-center justify-center min-h-screen p-4 overflow-x-hidden transition-colors duration-300"
+  >
+    <div class="flex flex-col items-center space-y-6 max-w-sm w-full my-auto">
+      <h1 class="text-2xl font-semibold tracking-wide text-center w-full">
+        QR Code Generator
+      </h1>
+
+      <!-- QR Code Container -->
+      <div
+        class="bg-white p-4 rounded-2xl shadow-xl w-full box-border"
+        data-darkreader-ignore
+      >
+        <div id="qrcode" class="w-full flex items-center justify-center"></div>
+      </div>
+
+      <!-- Settings & Action Controls Container -->
+      <div
+        class="w-full space-y-4 bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none box-border transition-colors duration-300"
+      >
+        <!-- Custom Input Field -->
+        <div class="flex flex-col space-y-1">
+          <label
+            for="textInput"
+            class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-medium"
+          >
+            QR Code Content
+          </label>
+          <input
+            type="text"
+            id="textInput"
+            placeholder="Enter text"
+            class="dynamic-border bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none font-mono text-sm transition-colors duration-200"
+            style="--dynamic-focus: #0f172a"
+          />
+        </div>
+
+        <!-- Error Correction Level Selector -->
+        <div class="flex flex-col space-y-1">
+          <label
+            for="correctLevelSelect"
+            class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-medium"
+          >
+            Correction Level
+          </label>
+          <select
+            id="correctLevelSelect"
+            class="dynamic-border bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-slate-100 focus:outline-none text-sm cursor-pointer transition-colors duration-200"
+            style="--dynamic-focus: #0f172a"
+          >
+            <option value="L">Low (7%)</option>
+            <option value="M" selected>Medium (15%)</option>
+            <option value="Q">Quartile (25%)</option>
+            <option value="H">High (30%)</option>
+          </select>
+        </div>
+
+        <!-- Action Buttons Row -->
+        <div class="flex items-center space-x-2 pt-2 relative">
+          <!-- Refresh / Random Icon Button -->
+          <button
+            id="generateBtn"
+            title="Generate Random 5-Digit Code"
+            class="dynamic-bg active:scale-95 p-3 rounded-xl shadow text-slate-950 dark:text-slate-100 font-semibold cursor-pointer flex items-center justify-center shrink-0 transition-all duration-200"
+            style="background-color: #0f172a"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="icon icon-tabler icons-tabler-outline icon-tabler-dice-5 text-white"
+            >
+              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              <path
+                d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14"
+              />
+              <path
+                d="M8 8.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"
+                fill="currentColor"
+              />
+              <path
+                d="M15 8.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"
+                fill="currentColor"
+              />
+              <path
+                d="M15 15.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"
+                fill="currentColor"
+              />
+              <path
+                d="M8 15.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"
+                fill="currentColor"
+              />
+              <path
+                d="M11.5 12a.5 .5 0 1 0 1 0a.5 .5 0 1 0 -1 0"
+                fill="currentColor"
+              />
+            </svg>
+          </button>
+
+          <!-- Color Picker Button & Popup Menu -->
+          <div class="relative shrink-0">
+            <button
+              id="colorBtn"
+              title="Change Fill Colour"
+              class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 active:scale-95 p-3 rounded-xl shadow text-slate-800 dark:text-slate-100 cursor-pointer flex items-center justify-center border border-slate-200 dark:border-transparent transition-all duration-200"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon icon-tabler icons-tabler-outline icon-tabler-palette"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                  d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"
+                />
+                <path d="M7.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                <path d="M11.5 7.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                <path d="M15.5 10.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+              </svg>
+            </button>
+
+            <!-- Improved Color Picker Popover Menu -->
+            <div
+              id="colorMenu"
+              class="hidden absolute left-0 bottom-full mb-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-4 z-50 flex flex-col space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+                >
+                  Colour Picker
+                </span>
+                <button
+                  id="closeColorMenu"
+                  class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <i class="ti ti-x text-base"></i>
+                </button>
+              </div>
+
+              <!-- Native Color Picker Row -->
+              <div class="flex items-center space-x-3">
+                <div
+                  class="relative w-10 h-10 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 shadow-inner"
+                >
+                  <input
+                    type="color"
+                    id="colorPicker"
+                    value="#0f172a"
+                    class="absolute -inset-2 w-14 h-14 cursor-pointer p-0 border-0"
+                  />
+                </div>
+                <div class="flex-1 flex flex-col">
+                  <label
+                    for="hexInput"
+                    class="text-[10px] text-slate-400 uppercase tracking-widest font-medium"
+                    >Hex Code</label
+                  >
+                  <input
+                    type="text"
+                    id="hexInput"
+                    value="#0f172a"
+                    maxlength="7"
+                    class="dynamic-border bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    style="--dynamic-focus: #0f172a"
+                  />
+                </div>
+              </div>
+
+              <!-- Preset Swatches -->
+              <div
+                class="flex flex-col space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-700/50"
+              >
+                <span
+                  class="text-[10px] text-slate-400 uppercase tracking-widest font-medium"
+                  >Presets</span
+                >
+                <div class="grid grid-cols-6 gap-2">
+                  <button
+                    type="button"
+                    data-color="#0f172a"
+                    class="h-7 rounded-lg bg-slate-900 border border-slate-700 cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#059669"
+                    class="h-7 rounded-lg bg-emerald-600 cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#2563eb"
+                    class="h-7 rounded-lg bg-blue-600 cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#7c3aed"
+                    class="h-7 rounded-lg bg-purple-600 cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#dc2626"
+                    class="h-7 rounded-lg bg-red-600 cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                  <button
+                    type="button"
+                    data-color="#000000"
+                    class="h-7 rounded-lg bg-black cursor-pointer transition-transform hover:scale-105"
+                  ></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Combined Split SVG Button -->
+          <div
+            class="flex flex-1 bg-slate-100 dark:bg-slate-700 rounded-xl shadow border border-slate-200 dark:border-transparent overflow-hidden transition-colors duration-300"
+          >
+            <!-- Copy Half -->
+            <button
+              id="copyBtn"
+              title="Copy SVG Code to Clipboard"
+              class="flex-1 hover:bg-slate-200 dark:hover:bg-slate-600 active:scale-95 p-3 text-slate-800 dark:text-slate-100 cursor-pointer flex items-center justify-center space-x-1.5 border-r border-slate-200 dark:border-slate-600 transition-colors duration-200"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon icon-tabler icons-tabler-outline icon-tabler-clipboard"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                  d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"
+                />
+                <path
+                  d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2"
+                />
+              </svg>
+              <span id="copyText" class="text-xs">Copy</span>
+            </button>
+
+            <!-- Download Half -->
+            <button
+              id="downloadBtn"
+              title="Download QR as Vector SVG"
+              class="flex-1 hover:bg-slate-200 dark:hover:bg-slate-600 active:scale-95 p-3 text-slate-800 dark:text-slate-100 cursor-pointer flex items-center justify-center space-x-1.5 transition-colors duration-200"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="icon icon-tabler icons-tabler-outline icon-tabler-download"
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+                <path d="M7 11l5 5l5 -5" />
+                <path d="M12 4l0 12" />
+              </svg>
+              <span class="text-xs">SVG</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Recent History Section -->
+        <div
+          id="historyContainer"
+          class="hidden pt-2 border-t border-slate-100 dark:border-slate-700/50 flex flex-col space-y-1.5"
+        >
+          <div class="flex items-center justify-between">
+            <span
+              class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-medium"
+            >
+              Recent History
+            </span>
+            <button
+              id="clearHistoryBtn"
+              title="Clear History"
+              class="text-[10px] text-slate-400 hover:text-red-500 cursor-pointer transition-colors duration-150"
+            >
+              Clear
+            </button>
+          </div>
+          <div
+            id="historyList"
+            class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Hover Trigger Zone for Theme Toggle -->
+    <div
+      id="bottomHoverZone"
+      class="fixed bottom-0 left-0 w-full h-16 flex items-end justify-center pb-3 group z-50"
+    >
+      <button
+        id="themeToggleBtn"
+        title="Toggle Dark/Light Mode"
+        class="p-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-md cursor-pointer flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-300"
+      >
+        <i id="sunIcon" class="ti ti-sun text-xl hidden leading-none"></i>
+        <i id="moonIcon" class="ti ti-moon text-xl leading-none"></i>
+      </button>
+    </div>
+
+    <script>
+      const qrContainer = document.getElementById("qrcode");
+      const generateBtn = document.getElementById("generateBtn");
+      const colorBtn = document.getElementById("colorBtn");
+      const colorMenu = document.getElementById("colorMenu");
+      const closeColorMenu = document.getElementById("closeColorMenu");
+      const colorPicker = document.getElementById("colorPicker");
+      const hexInput = document.getElementById("hexInput");
+      const copyBtn = document.getElementById("copyBtn");
+      const copyText = document.getElementById("copyText");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const textInput = document.getElementById("textInput");
+      const correctLevelSelect = document.getElementById("correctLevelSelect");
+      const themeToggleBtn = document.getElementById("themeToggleBtn");
+      const sunIcon = document.getElementById("sunIcon");
+      const moonIcon = document.getElementById("moonIcon");
+      const historyContainer = document.getElementById("historyContainer");
+      const historyList = document.getElementById("historyList");
+      const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+      let currentQRColor = "#0f172a";
+      let qrCodeInstance = null;
+
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      ).matches;
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+        sunIcon.classList.remove("hidden");
+        moonIcon.classList.add("hidden");
+      }
+
+      themeToggleBtn.addEventListener("click", () => {
+        const isDark = document.documentElement.classList.toggle("dark");
+        if (isDark) {
+          sunIcon.classList.remove("hidden");
+          moonIcon.classList.add("hidden");
+        } else {
+          sunIcon.classList.add("hidden");
+          moonIcon.classList.remove("hidden");
+        }
+      });
+
+      function getCorrectionLevel(level) {
+        switch (level) {
+          case "L":
+            return QRCode.CorrectLevel.L;
+          case "M":
+            return QRCode.CorrectLevel.M;
+          case "Q":
+            return QRCode.CorrectLevel.Q;
+          case "H":
+          default:
+            return QRCode.CorrectLevel.H;
+        }
+      }
+
+      function initQRCode(text, level) {
+        qrContainer.innerHTML = "";
+        qrCodeInstance = new QRCode(qrContainer, {
+          text: text,
+          width: 500,
+          height: 500,
+          colorDark: currentQRColor,
+          colorLight: "#ffffff",
+          correctLevel: getCorrectionLevel(level),
+        });
+      }
+
+      function updateQR(text) {
+        const level = correctLevelSelect.value;
+        const content = text || " ";
+
+        if (
+          !qrCodeInstance ||
+          qrCodeInstance._htOption.correctLevel !== getCorrectionLevel(level) ||
+          qrCodeInstance._htOption.colorDark !== currentQRColor
+        ) {
+          initQRCode(content, level);
+        } else {
+          qrCodeInstance.makeCode(content);
+        }
+      }
+
+      function applyColor(hex) {
+        if (!/^#[0-9A-F]{6}$/i.test(hex)) return;
+        currentQRColor = hex;
+        colorPicker.value = hex;
+        hexInput.value = hex;
+
+        // Dynamically update UI focus rings and buttons matching the picked color
+        generateBtn.style.backgroundColor = hex;
+        document.querySelectorAll(".dynamic-border").forEach((el) => {
+          el.style.setProperty("--dynamic-focus", hex);
+          el.style.borderColor = ""; // Clear any overridden inline state if needed
+        });
+
+        updateQR(textInput.value);
+      }
+
+      // Add dynamic focus event listeners via JS for elements using custom CSS variable
+      document.querySelectorAll(".dynamic-border").forEach((el) => {
+        el.addEventListener("focus", () => {
+          el.style.borderColor = el.style.getPropertyValue("--dynamic-focus");
+        });
+        el.addEventListener("blur", () => {
+          el.style.borderColor = "";
+        });
+      });
+
+      // Color Menu Toggle Logic
+      colorBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        colorMenu.classList.toggle("hidden");
+      });
+
+      closeColorMenu.addEventListener("click", () => {
+        colorMenu.classList.add("hidden");
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!colorMenu.contains(e.target) && !colorBtn.contains(e.target)) {
+          colorMenu.classList.add("hidden");
+        }
+      });
+
+      colorPicker.addEventListener("input", (e) => {
+        applyColor(e.target.value);
+      });
+
+      hexInput.addEventListener("input", (e) => {
+        let val = e.target.value;
+        if (!val.startsWith("#")) {
+          val = "#" + val;
+        }
+        if (/^#[0-9A-F]{0,6}$/i.test(val)) {
+          hexInput.value = val;
+          if (val.length === 7) {
+            applyColor(val);
+          }
+        }
+      });
+
+      // Preset swatch clicks
+      document.querySelectorAll("[data-color]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          applyColor(btn.getAttribute("data-color"));
+        });
+      });
+
+      function getHistory() {
+        try {
+          const stored = localStorage.getItem("qr_history");
+          return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveToHistory(text) {
+        if (!text || text.trim() === "") return;
+        let history = getHistory();
+        history = history.filter((item) => item !== text.trim());
+        history.unshift(text.trim());
+        if (history.length > 6) history.pop();
+        localStorage.setItem("qr_history", JSON.stringify(history));
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const history = getHistory();
+        historyList.innerHTML = "";
+
+        if (history.length === 0) {
+          historyContainer.classList.add("hidden");
+          return;
+        }
+
+        historyContainer.classList.remove("hidden");
+        history.forEach((item) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className =
+            "bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg text-xs font-mono truncate max-w-[180px] transition-colors cursor-pointer";
+          btn.textContent = item;
+          btn.title = item;
+          btn.addEventListener("click", () => {
+            textInput.value = item;
+            updateQR(item);
+          });
+          historyList.appendChild(btn);
+        });
+      }
+
+      clearHistoryBtn.addEventListener("click", () => {
+        localStorage.removeItem("qr_history");
+        renderHistory();
+      });
+
+      function getVectorSVGString() {
+        const qrObj = qrCodeInstance && qrCodeInstance._oQRCode;
+        if (!qrObj || !qrObj.modules) return null;
+
+        const modules = qrObj.modules;
+        const size = modules.length;
+
+        let rects = "";
+        for (let row = 0; row < size; row++) {
+          for (let col = 0; col < size; col++) {
+            if (modules[row][col]) {
+              rects += `<rect x="${col}" y="${row}" width="1" height="1" fill="${currentQRColor}"/>\n`;
+            }
+          }
+        }
+
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">
+          <rect width="${size}" height="${size}" fill="#ffffff"/>
+          ${rects}
+        </svg>`;
+      }
+
+      function copySVGToClipboard() {
+        const svgString = getVectorSVGString();
+        if (!svgString) return;
+
+        saveToHistory(textInput.value);
+
+        navigator.clipboard.writeText(svgString).then(() => {
+          const originalText = copyText.textContent;
+          copyText.textContent = "Copied!";
+          copyBtn.classList.add(
+            "text-emerald-500",
+            "dark:text-emerald-400",
+            "font-semibold",
+          );
+          setTimeout(() => {
+            copyText.textContent = originalText;
+            copyBtn.classList.remove(
+              "text-emerald-500",
+              "dark:text-emerald-400",
+              "font-semibold",
+            );
+          }, 1500);
+        });
+      }
+
+      function downloadSVG() {
+        const svgString = getVectorSVGString();
+        if (!svgString) return;
+
+        saveToHistory(textInput.value);
+
+        const safeFilename = (textInput.value || "code")
+          .replace(/[^a-z0-9]/gi, "_")
+          .toLowerCase();
+        const blob = new Blob([svgString], {
+          type: "image/svg+xml;charset=utf-8",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `qrcode-${safeFilename}.svg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      textInput.addEventListener("input", (e) => updateQR(e.target.value));
+
+      textInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          saveToHistory(textInput.value);
+        }
+      });
+
+      correctLevelSelect.addEventListener("change", () =>
+        updateQR(textInput.value),
+      );
+
+      generateBtn.addEventListener("click", () => {
+        const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
+        textInput.value = randomCode;
+        updateQR(randomCode);
+        saveToHistory(randomCode);
+      });
+
+      copyBtn.addEventListener("click", copySVGToClipboard);
+      downloadBtn.addEventListener("click", downloadSVG);
+
+      renderHistory();
+      initQRCode(textInput.value || " ", correctLevelSelect.value);
+    </script>
+  </body>
+</html>
