@@ -592,18 +592,12 @@
         navigator.clipboard.writeText(svgString).then(() => {
           const originalText = copyText.textContent;
           copyText.textContent = "Copied!";
-          copyBtn.classList.add(
-            "text-emerald-500",
-            "dark:text-emerald-400",
-            "font-semibold",
-          );
+          copyBtn.style.color = currentQRColor;
+          copyBtn.classList.add("font-semibold");
           setTimeout(() => {
             copyText.textContent = originalText;
-            copyBtn.classList.remove(
-              "text-emerald-500",
-              "dark:text-emerald-400",
-              "font-semibold",
-            );
+            copyBtn.style.color = "";
+            copyBtn.classList.remove("font-semibold");
           }, 1500);
         });
       }
