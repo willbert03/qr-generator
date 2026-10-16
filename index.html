@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="darkreader-lock" />
     <title>QR Code Generator</title>
+    <!-- Apply the browser's preferred theme before the page is painted. -->
     <script>
       (() => {
         const root = document.documentElement;
@@ -24,8 +25,14 @@
         } else if (typeof media.addListener === "function") {
           media.addListener((event) => applyTheme(event.matches));
         }
+
+        window.__qrThemeState = {
+          applyTheme,
+          isDark: () => root.classList.contains("dark"),
+        };
       })();
     </script>
+    <!-- Base styles keep the first render stable while Tailwind loads. -->
     <style>
       html {
         background-color: #f8fafc;
@@ -89,7 +96,7 @@
         QR Code Generator
       </h1>
 
-      <!-- QR Code Container -->
+      <!-- Output area: the QR is rendered here and kept on a white background. -->
       <div
         class="bg-white p-4 rounded-2xl shadow-xl w-full box-border"
         data-darkreader-ignore
@@ -97,7 +104,7 @@
         <div id="qrcode" class="w-full flex items-center justify-center"></div>
       </div>
 
-      <!-- Settings & Action Controls Container -->
+      <!-- Main controls: content, correction level, color, and output actions. -->
       <div
         class="w-full space-y-4 bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none box-border transition-colors duration-300"
       >
@@ -107,7 +114,7 @@
             for="textInput"
             class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-medium"
           >
-            QR Code Content
+            Content
           </label>
           <input
             type="text"
@@ -335,7 +342,7 @@
         <!-- Recent History Section -->
         <div
           id="historyContainer"
-          class="hidden pt-2 border-t border-slate-200 dark:border-slate-700/50 flex flex-col space-y-1.5"
+          class="hidden pt-2 border-t border-slate-200 dark:border-slate-700/50 flex flex-col space-y-1.5 transition-colors duration-300"
         >
           <div class="flex items-center justify-between">
             <button
@@ -361,7 +368,7 @@
       </div>
     </div>
 
-    <!-- Bottom Hover Trigger Zone for Theme Toggle -->
+    <!-- Theme control stays separate from the generator's main controls. -->
     <div
       id="bottomHoverZone"
       class="fixed bottom-0 left-0 w-full h-16 flex items-end justify-center pb-3 group z-50"
@@ -377,354 +384,385 @@
     </div>
 
     <script>
-      const qrContainer = document.getElementById("qrcode");
-      const generateBtn = document.getElementById("generateBtn");
-      const diceIcon = document.getElementById("diceIcon");
-      const colorBtn = document.getElementById("colorBtn");
-      const colorMenu = document.getElementById("colorMenu");
-      const closeColorMenu = document.getElementById("closeColorMenu");
-      const colorPicker = document.getElementById("colorPicker");
-      const hexInput = document.getElementById("hexInput");
-      const copyBtn = document.getElementById("copyBtn");
-      const copyText = document.getElementById("copyText");
-      const downloadBtn = document.getElementById("downloadBtn");
-      const textInput = document.getElementById("textInput");
-      const correctLevelSelect = document.getElementById("correctLevelSelect");
-      const themeToggleBtn = document.getElementById("themeToggleBtn");
-      const sunIcon = document.getElementById("sunIcon");
-      const moonIcon = document.getElementById("moonIcon");
-      const historyContainer = document.getElementById("historyContainer");
-      const historyList = document.getElementById("historyList");
-      const toggleHistoryBtn = document.getElementById("toggleHistoryBtn");
-      const historyToggleIcon = document.getElementById("historyToggleIcon");
-      const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+      // Cache the page elements once so the helpers below can share them.
+      const els = {
+        qrContainer: document.getElementById("qrcode"),
+        generateBtn: document.getElementById("generateBtn"),
+        diceIcon: document.getElementById("diceIcon"),
+        colorBtn: document.getElementById("colorBtn"),
+        colorMenu: document.getElementById("colorMenu"),
+        closeColorMenu: document.getElementById("closeColorMenu"),
+        colorPicker: document.getElementById("colorPicker"),
+        hexInput: document.getElementById("hexInput"),
+        copyBtn: document.getElementById("copyBtn"),
+        copyText: document.getElementById("copyText"),
+        downloadBtn: document.getElementById("downloadBtn"),
+        textInput: document.getElementById("textInput"),
+        correctLevelSelect: document.getElementById("correctLevelSelect"),
+        themeToggleBtn: document.getElementById("themeToggleBtn"),
+        sunIcon: document.getElementById("sunIcon"),
+        moonIcon: document.getElementById("moonIcon"),
+        historyContainer: document.getElementById("historyContainer"),
+        historyList: document.getElementById("historyList"),
+        toggleHistoryBtn: document.getElementById("toggleHistoryBtn"),
+        historyToggleIcon: document.getElementById("historyToggleIcon"),
+        clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+      };
 
+      const themeState = window.__qrThemeState || {
+        applyTheme: (isDark) =>
+          document.documentElement.classList.toggle("dark", isDark),
+        isDark: () => document.documentElement.classList.contains("dark"),
+      };
+
+      // Shared values used by QR generation and its controls.
       let currentQRColor = "#0f172a";
       let qrCodeInstance = null;
       let currentCodeIsRandom = false;
       let diceRollAnimation = null;
 
-      const prefersDarkMedia = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      );
-
-      function syncThemeIcons() {
-        const isDark = document.documentElement.classList.contains("dark");
-        if (isDark) {
-          sunIcon.classList.remove("hidden");
-          moonIcon.classList.add("hidden");
-        } else {
-          sunIcon.classList.add("hidden");
-          moonIcon.classList.remove("hidden");
-        }
-      }
-
-      function applyTheme(isDark) {
-        document.documentElement.classList.toggle("dark", isDark);
-        syncThemeIcons();
-      }
-
-      applyTheme(prefersDarkMedia.matches);
-
-      if (typeof prefersDarkMedia.addEventListener === "function") {
-        prefersDarkMedia.addEventListener("change", (event) => {
-          applyTheme(event.matches);
-        });
-      } else if (typeof prefersDarkMedia.addListener === "function") {
-        prefersDarkMedia.addListener((event) => {
-          applyTheme(event.matches);
-        });
-      }
-
-      themeToggleBtn.addEventListener("click", () => {
-        applyTheme(!document.documentElement.classList.contains("dark"));
-      });
-
-      function getCorrectionLevel(level) {
-        const correctionLevels = {
-          L: QRCode.CorrectLevel.L,
-          M: QRCode.CorrectLevel.M,
-          Q: QRCode.CorrectLevel.Q,
-          H: QRCode.CorrectLevel.H,
-        };
-        return correctionLevels[level] ?? correctionLevels.M;
-      }
-
-      function initQRCode(text, level) {
-        qrContainer.innerHTML = "";
-        qrCodeInstance = new QRCode(qrContainer, {
-          text: text,
-          width: 500,
-          height: 500,
-          colorDark: currentQRColor,
-          colorLight: "#ffffff",
-          correctLevel: getCorrectionLevel(level),
-        });
-        renderQRCodeSVG();
-      }
-
-      function updateQR(text) {
-        const level = correctLevelSelect.value;
-        const content = text || " ";
-
-        if (
-          !qrCodeInstance ||
-          qrCodeInstance._htOption.correctLevel !== getCorrectionLevel(level)
-        ) {
-          initQRCode(content, level);
-        } else {
-          qrCodeInstance.makeCode(content);
-          renderQRCodeSVG();
-        }
-      }
-
-      function applyColor(hex) {
-        if (!/^#[0-9A-F]{6}$/i.test(hex)) return;
-        currentQRColor = hex;
-        colorPicker.value = hex;
-        hexInput.value = hex;
-
-        // Dynamically update UI focus rings and buttons matching the picked color
-        generateBtn.style.backgroundColor = hex;
-        document.querySelectorAll(".dynamic-border").forEach((el) => {
-          el.style.setProperty("--dynamic-focus", hex);
-          el.style.borderColor = ""; // Clear any overridden inline state if needed
-        });
-        qrContainer.querySelectorAll(".qr-module").forEach((module) => {
-          module.setAttribute("fill", hex);
-        });
-      }
-
-      // Add dynamic focus event listeners via JS for elements using custom CSS variable
-      document.querySelectorAll(".dynamic-border").forEach((el) => {
-        el.addEventListener("focus", () => {
-          el.style.borderColor = el.style.getPropertyValue("--dynamic-focus");
-        });
-        el.addEventListener("blur", () => {
-          el.style.borderColor = "";
-        });
-      });
-
-      // Color Menu Toggle Logic
-      colorBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        colorMenu.classList.toggle("hidden");
-      });
-
-      closeColorMenu.addEventListener("click", () => {
-        colorMenu.classList.add("hidden");
-      });
-
-      document.addEventListener("click", (e) => {
-        if (!colorMenu.contains(e.target) && !colorBtn.contains(e.target)) {
-          colorMenu.classList.add("hidden");
-        }
-      });
-
-      colorPicker.addEventListener("input", (e) => {
-        applyColor(e.target.value);
-      });
-
-      hexInput.addEventListener("input", (e) => {
-        let val = e.target.value;
-        if (!val.startsWith("#")) {
-          val = "#" + val;
-        }
-        if (/^#[0-9A-F]{0,6}$/i.test(val)) {
-          hexInput.value = val;
-          if (val.length === 7) {
-            applyColor(val);
-          }
-        }
-      });
-
-      // Preset swatch clicks
-      document.querySelectorAll("[data-color]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          applyColor(btn.getAttribute("data-color"));
-        });
-      });
-
-      function getHistory() {
-        try {
-          const stored = localStorage.getItem("qr_history");
-          return stored ? JSON.parse(stored) : [];
-        } catch (e) {
-          return [];
-        }
-      }
-
-      function saveToHistory(text) {
-        if (!text || text.trim() === "") return;
-        let history = getHistory();
-        history = history.filter((item) => item !== text.trim());
-        history.unshift(text.trim());
-        if (history.length > 20) history.pop();
-        localStorage.setItem("qr_history", JSON.stringify(history));
-        renderHistory();
-      }
-
-      function saveCurrentToHistory() {
-        if (!currentCodeIsRandom) saveToHistory(textInput.value);
-      }
-
-      function renderHistory() {
-        const history = getHistory();
-        historyList.innerHTML = "";
-
-        if (history.length === 0) {
-          historyContainer.classList.add("hidden");
-          historyList.classList.remove("hidden");
-          toggleHistoryBtn.setAttribute("aria-expanded", "true");
-          historyToggleIcon.classList.replace(
-            "ti-chevron-down",
-            "ti-chevron-up",
-          );
-          return;
-        }
-
-        historyContainer.classList.remove("hidden");
-        history.forEach((item) => {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className =
-            "bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg text-xs font-mono truncate max-w-[180px] transition-colors duration-300 cursor-pointer";
-          btn.textContent = item;
-          btn.title = item;
-          btn.addEventListener("click", () => {
-            currentCodeIsRandom = false;
-            textInput.value = item;
-            updateQR(item);
+      // Theme toggle updates the page class and keeps its icons in sync.
+      const theme = {
+        syncIcons() {
+          const isDark = themeState.isDark();
+          els.sunIcon.classList.toggle("hidden", !isDark);
+          els.moonIcon.classList.toggle("hidden", isDark);
+        },
+        bindToggle() {
+          els.themeToggleBtn.addEventListener("click", () => {
+            const nextIsDark = !themeState.isDark();
+            themeState.applyTheme(nextIsDark);
+            theme.syncIcons();
           });
-          historyList.appendChild(btn);
-        });
-      }
+        },
+      };
 
-      toggleHistoryBtn.addEventListener("click", () => {
-        const isExpanded =
-          toggleHistoryBtn.getAttribute("aria-expanded") === "true";
-        toggleHistoryBtn.setAttribute("aria-expanded", String(!isExpanded));
-        historyList.classList.toggle("hidden", isExpanded);
-        historyToggleIcon.classList.toggle("ti-chevron-up", !isExpanded);
-        historyToggleIcon.classList.toggle("ti-chevron-down", isExpanded);
-      });
+      // QR generation, color updates, SVG rendering, and color-menu events.
+      const qr = {
+        getCorrectionLevel(level) {
+          const correctionLevels = {
+            L: QRCode.CorrectLevel.L,
+            M: QRCode.CorrectLevel.M,
+            Q: QRCode.CorrectLevel.Q,
+            H: QRCode.CorrectLevel.H,
+          };
+          return correctionLevels[level] ?? correctionLevels.M;
+        },
+        getBackgroundColor() {
+          return "#ffffff";
+        },
+        init(text, level) {
+          els.qrContainer.innerHTML = "";
+          qrCodeInstance = new QRCode(els.qrContainer, {
+            text,
+            width: 500,
+            height: 500,
+            colorDark: currentQRColor,
+            colorLight: qr.getBackgroundColor(),
+            correctLevel: qr.getCorrectionLevel(level),
+          });
+          qr.renderSVG();
+        },
+        update(text) {
+          const level = els.correctLevelSelect.value;
+          const content = text || " ";
 
-      clearHistoryBtn.addEventListener("click", () => {
-        localStorage.removeItem("qr_history");
-        renderHistory();
-      });
+          if (
+            !qrCodeInstance ||
+            qrCodeInstance._htOption.correctLevel !==
+              qr.getCorrectionLevel(level)
+          ) {
+            qr.init(content, level);
+            return;
+          }
 
-      function getVectorSVGString() {
-        const qrObj = qrCodeInstance && qrCodeInstance._oQRCode;
-        if (!qrObj || !qrObj.modules) return null;
+          qrCodeInstance.makeCode(content);
+          qr.renderSVG();
+        },
+        applyColor(hex) {
+          if (!/^#[0-9A-F]{6}$/i.test(hex)) return;
 
-        const modules = qrObj.modules;
-        const size = modules.length;
+          currentQRColor = hex;
+          els.colorPicker.value = hex;
+          els.hexInput.value = hex;
 
-        let rects = "";
-        for (let row = 0; row < size; row++) {
-          for (let col = 0; col < size; col++) {
-            if (modules[row][col]) {
-              rects += `<rect class="qr-module" x="${col}" y="${row}" width="1" height="1" fill="${currentQRColor}"/>\n`;
+          els.generateBtn.style.backgroundColor = hex;
+          document.querySelectorAll(".dynamic-border").forEach((el) => {
+            el.style.setProperty("--dynamic-focus", hex);
+            el.style.borderColor = "";
+          });
+
+          els.qrContainer.querySelectorAll(".qr-module").forEach((module) => {
+            module.setAttribute("fill", hex);
+          });
+        },
+        getVectorSVGString() {
+          const qrObj = qrCodeInstance && qrCodeInstance._oQRCode;
+          if (!qrObj || !qrObj.modules) return null;
+
+          const modules = qrObj.modules;
+          const size = modules.length;
+          const fillColor = currentQRColor;
+          const backgroundColor = qr.getBackgroundColor();
+
+          let rects = "";
+          for (let row = 0; row < size; row++) {
+            for (let col = 0; col < size; col++) {
+              if (modules[row][col]) {
+                rects += `<rect class="qr-module" x="${col}" y="${row}" width="1" height="1" fill="${fillColor}"/>\n`;
+              }
             }
           }
-        }
 
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">
-          <rect width="${size}" height="${size}" fill="#ffffff"/>
-          ${rects}
-        </svg>`;
+          return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">
+            <rect width="${size}" height="${size}" fill="${backgroundColor}"/>
+            ${rects}
+          </svg>`;
+        },
+        renderSVG() {
+          const svgString = qr.getVectorSVGString();
+          if (svgString) {
+            els.qrContainer.innerHTML = svgString;
+          }
+        },
+        bindEvents() {
+          els.colorBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            els.colorMenu.classList.toggle("hidden");
+          });
+
+          els.closeColorMenu.addEventListener("click", () => {
+            els.colorMenu.classList.add("hidden");
+          });
+
+          document.addEventListener("click", (event) => {
+            if (
+              !els.colorMenu.contains(event.target) &&
+              !els.colorBtn.contains(event.target)
+            ) {
+              els.colorMenu.classList.add("hidden");
+            }
+          });
+
+          els.colorPicker.addEventListener("input", (event) => {
+            qr.applyColor(event.target.value);
+          });
+
+          els.hexInput.addEventListener("input", (event) => {
+            let value = event.target.value;
+            if (!value.startsWith("#")) value = `#${value}`;
+
+            if (/^#[0-9A-F]{0,6}$/i.test(value)) {
+              els.hexInput.value = value;
+              if (value.length === 7) qr.applyColor(value);
+            }
+          });
+
+          document.querySelectorAll("[data-color]").forEach((button) => {
+            button.addEventListener("click", () => {
+              qr.applyColor(button.getAttribute("data-color"));
+            });
+          });
+
+          document.querySelectorAll(".dynamic-border").forEach((element) => {
+            element.addEventListener("focus", () => {
+              element.style.borderColor =
+                element.style.getPropertyValue("--dynamic-focus");
+            });
+            element.addEventListener("blur", () => {
+              element.style.borderColor = "";
+            });
+          });
+        },
+      };
+
+      // Recent entries are stored in localStorage and rendered as buttons.
+      const history = {
+        get() {
+          try {
+            const stored = localStorage.getItem("qr_history");
+            return stored ? JSON.parse(stored) : [];
+          } catch (error) {
+            return [];
+          }
+        },
+        save(text) {
+          if (!text || text.trim() === "") return;
+
+          let items = history.get();
+          items = items.filter((item) => item !== text.trim());
+          items.unshift(text.trim());
+          if (items.length > 20) items.pop();
+
+          localStorage.setItem("qr_history", JSON.stringify(items));
+          history.render();
+        },
+        saveCurrent() {
+          if (!currentCodeIsRandom) {
+            history.save(els.textInput.value);
+          }
+        },
+        render() {
+          const items = history.get();
+          els.historyList.innerHTML = "";
+
+          if (items.length === 0) {
+            els.historyContainer.classList.add("hidden");
+            els.historyList.classList.remove("hidden");
+            els.toggleHistoryBtn.setAttribute("aria-expanded", "true");
+            els.historyToggleIcon.classList.replace(
+              "ti-chevron-down",
+              "ti-chevron-up",
+            );
+            return;
+          }
+
+          els.historyContainer.classList.remove("hidden");
+          items.forEach((item) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className =
+              "bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg text-xs font-mono truncate max-w-[180px] transition-colors duration-300 cursor-pointer";
+            btn.textContent = item;
+            btn.title = item;
+            btn.addEventListener("click", () => {
+              currentCodeIsRandom = false;
+              els.textInput.value = item;
+              qr.update(item);
+            });
+            els.historyList.appendChild(btn);
+          });
+        },
+        bindToggle() {
+          els.toggleHistoryBtn.addEventListener("click", () => {
+            const isExpanded =
+              els.toggleHistoryBtn.getAttribute("aria-expanded") === "true";
+
+            els.toggleHistoryBtn.setAttribute(
+              "aria-expanded",
+              String(!isExpanded),
+            );
+            els.historyList.classList.toggle("hidden", isExpanded);
+            els.historyToggleIcon.classList.toggle(
+              "ti-chevron-up",
+              !isExpanded,
+            );
+            els.historyToggleIcon.classList.toggle(
+              "ti-chevron-down",
+              isExpanded,
+            );
+          });
+
+          els.clearHistoryBtn.addEventListener("click", () => {
+            localStorage.removeItem("qr_history");
+            history.render();
+          });
+        },
+      };
+
+      // Shared export preparation: get the current SVG and save its text.
+      function getSvgAndSave() {
+        const svgString = qr.getVectorSVGString();
+        if (!svgString) return null;
+        history.saveCurrent();
+        return svgString;
       }
 
-      function renderQRCodeSVG() {
-        const svgString = getVectorSVGString();
-        if (svgString) qrContainer.innerHTML = svgString;
-      }
+      // Connect text input and action buttons to the QR and history helpers.
+      function bindTextAndControls() {
+        els.textInput.addEventListener("input", (event) => {
+          currentCodeIsRandom = false;
+          qr.update(event.target.value);
+        });
 
-      function copySVGToClipboard() {
-        const svgString = getVectorSVGString();
-        if (!svgString) return;
+        els.textInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            history.saveCurrent();
+          }
+        });
 
-        saveCurrentToHistory();
+        els.correctLevelSelect.addEventListener("change", () => {
+          qr.update(els.textInput.value);
+        });
 
-        navigator.clipboard.writeText(svgString).then(() => {
-          const originalText = copyText.textContent;
-          copyText.textContent = "Copied!";
-          copyBtn.style.color = currentQRColor;
-          copyBtn.classList.add("font-semibold");
-          setTimeout(() => {
-            copyText.textContent = originalText;
-            copyBtn.style.color = "";
-            copyBtn.classList.remove("font-semibold");
-          }, 1500);
+        els.generateBtn.addEventListener("click", () => {
+          const randomCode = Math.floor(
+            10000 + Math.random() * 90000,
+          ).toString();
+          const randomDice = Math.floor(Math.random() * 6) + 1;
+          els.diceIcon.className = `ti ti-dice-${randomDice} text-2xl text-white`;
+
+          if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            diceRollAnimation?.cancel();
+            diceRollAnimation = els.diceIcon.animate(
+              [
+                { transform: "translateY(0) rotate(0deg)" },
+                { transform: "translateY(-5px) rotate(180deg)" },
+                { transform: "translateY(0) rotate(360deg)" },
+              ],
+              {
+                duration: 450,
+                easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+              },
+            );
+          }
+
+          els.textInput.value = randomCode;
+          currentCodeIsRandom = true;
+          qr.update(randomCode);
+        });
+
+        els.copyBtn.addEventListener("click", () => {
+          const svgString = getSvgAndSave();
+          if (!svgString) return;
+
+          navigator.clipboard.writeText(svgString).then(() => {
+            const originalText = els.copyText.textContent;
+            els.copyText.textContent = "Copied!";
+            els.copyBtn.style.color = currentQRColor;
+            els.copyBtn.classList.add("font-semibold");
+
+            setTimeout(() => {
+              els.copyText.textContent = originalText;
+              els.copyBtn.style.color = "";
+              els.copyBtn.classList.remove("font-semibold");
+            }, 1500);
+          });
+        });
+
+        els.downloadBtn.addEventListener("click", () => {
+          const svgString = getSvgAndSave();
+          if (!svgString) return;
+
+          const safeFilename = (els.textInput.value || "code")
+            .replace(/[^a-z0-9]/gi, "_")
+            .toLowerCase();
+          const blob = new Blob([svgString], {
+            type: "image/svg+xml;charset=utf-8",
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `qrcode-${safeFilename}.svg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
         });
       }
 
-      function downloadSVG() {
-        const svgString = getVectorSVGString();
-        if (!svgString) return;
-
-        saveCurrentToHistory();
-
-        const safeFilename = (textInput.value || "code")
-          .replace(/[^a-z0-9]/gi, "_")
-          .toLowerCase();
-        const blob = new Blob([svgString], {
-          type: "image/svg+xml;charset=utf-8",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `qrcode-${safeFilename}.svg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      // Start the app after helpers and element references are ready.
+      function init() {
+        theme.syncIcons();
+        theme.bindToggle();
+        qr.bindEvents();
+        history.bindToggle();
+        bindTextAndControls();
+        history.render();
+        qr.init(els.textInput.value || " ", els.correctLevelSelect.value);
       }
 
-      textInput.addEventListener("input", (e) => {
-        currentCodeIsRandom = false;
-        updateQR(e.target.value);
-      });
-
-      textInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          saveCurrentToHistory();
-        }
-      });
-
-      correctLevelSelect.addEventListener("change", () =>
-        updateQR(textInput.value),
-      );
-
-      generateBtn.addEventListener("click", () => {
-        const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
-        const randomDice = Math.floor(Math.random() * 6) + 1;
-        diceIcon.className = `ti ti-dice-${randomDice} text-2xl text-white`;
-        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          diceRollAnimation?.cancel();
-          diceRollAnimation = diceIcon.animate(
-            [
-              { transform: "translateY(0) rotate(0deg)" },
-              { transform: "translateY(-5px) rotate(180deg)" },
-              { transform: "translateY(0) rotate(360deg)" },
-            ],
-            {
-              duration: 450,
-              easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
-            },
-          );
-        }
-        textInput.value = randomCode;
-        currentCodeIsRandom = true;
-        updateQR(randomCode);
-      });
-
-      copyBtn.addEventListener("click", copySVGToClipboard);
-      downloadBtn.addEventListener("click", downloadSVG);
-
-      renderHistory();
-      initQRCode(textInput.value || " ", correctLevelSelect.value);
+      init();
     </script>
   </body>
 </html>
